@@ -1,0 +1,8 @@
+scaledAnimationMetaDataToGameXml
+================================
+
+Perl script to parse Spriter SCML animation XML, and TexturePacker sprite atlas XML, and merge them into a custom XML 
+output document. Similarly named frames in the input documents are identified, and given a GUID, linking the atlas sprites 
+to animation objects.
+
+Please see the comment block at the top of scaledAnimationMetaDataToGameXml.pl for details.
