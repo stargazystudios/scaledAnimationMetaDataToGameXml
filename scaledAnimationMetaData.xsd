@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xs:schema 	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+			targetNamespace="http://www.stargazystudios.com"
+			xmlns="http://www.stargazystudios.com">
+  <xs:complexType name="Vertex2D">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="1" name="x" type="xs:float"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="y" type="xs:float"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="AnimationScale">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="1" name="scaleFactor" type="xs:float"/>
+      <xs:element maxOccurs="1" minOccurs="0" name="targetResolution" type="Vertex2D"/>
+      <xs:element maxOccurs="1" minOccurs="0" name="targetPixelDensity" type="xs:int"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ScaledTexturePackerFiles">
+    <xs:sequence>
+      <xs:element maxOccurs="unbounded" minOccurs="1" name="texturePackerFile" type="xs:string"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="animationScale" type="AnimationScale"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ScaledAnimationMetaData">
+    <xs:sequence>
+      <xs:element maxOccurs="unbounded" minOccurs="1" name="spriterFile" type="xs:string"/>
+      <xs:element maxOccurs="unbounded" minOccurs="1" name="scaledTexturePackerFiles" type="ScaledTexturePackerFiles"/>
+      <xs:element maxOccurs="unbounded" minOccurs="1" name="gameXml" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="scaledAnimationMetaData" type="ScaledAnimationMetaData"/>
+</xs:schema>

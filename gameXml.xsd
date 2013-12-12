@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:complexType name="Vertex2D">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="1" name="x" type="xs:float"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="y" type="xs:float"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ScaledArtIndex">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="0" name="targetPixelDensity" type="xs:int"/>
+      <xs:element maxOccurs="1" minOccurs="0" name="targetResolution" type="Vertex2D"/>
+      <xs:element maxOccurs="unbounded" minOccurs="0" name="textureFile" type="TextureFile"/>
+      <xs:element maxOccurs="unbounded" minOccurs="0" name="animation" type="Animation"/>
+    </xs:sequence>
+    <xs:attribute name="numAnimationFrames" type="xs:int"/>
+    <xs:attribute name="numTextureFiles" type="xs:int"/>
+    <xs:attribute name="numAnimations" type="xs:int"/>
+  </xs:complexType>
+  <xs:complexType name="TextureFile">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="1" name="dir" type="xs:string"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="file" type="xs:string"/>
+      <xs:element maxOccurs="unbounded" minOccurs="0" name="animationFrame" type="AnimationFrame"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="AnimationFrame">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="0" name="name" type="xs:string"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="uv" type="Vertex2D"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="dimensions" type="Vertex2D"/>
+    </xs:sequence>
+    <xs:attribute name="uid" type="xs:int" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="Animation">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="1" name="name" type="xs:string"/>
+      <xs:element maxOccurs="unbounded" minOccurs="1" name="animationFrameTiming" type="AnimationFrameTiming"/>
+    </xs:sequence>
+    <xs:attribute name="uid" type="xs:int" use="required"/>
+    <xs:attribute name="numAnimationFrameTimings" type="xs:int"/>
+  </xs:complexType>
+  <xs:complexType name="AnimationFrameTiming">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="1" name="animationFrameUid" type="xs:int"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="startTimeMilliSec" type="xs:int"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="endTimeMilliSec" type="xs:int"/>
+      <xs:element maxOccurs="1" minOccurs="1" name="offset" type="Vertex2D"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="GameConfig">
+    <xs:sequence>
+      <xs:element maxOccurs="1" minOccurs="0" name="actorTypeIndex" type="ActorTypeIndex"/>
+      <xs:element maxOccurs="unbounded" minOccurs="0" name="scaledArtIndex" type="ScaledArtIndex"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="gameConfig" type="GameConfig"/>
+</xs:schema>
