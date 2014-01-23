@@ -502,28 +502,30 @@ if(-e $paramIn){
 	#read in existing document, and replace the animation and texture data
 	foreach my $gameXmlFileElement ($paramDoc->getElementsByTagName('gameXml')){
 		
-		my $gameXmlFileName = $gameXmlFileElement->textContent;
+		my $gameXmlFilePath = $gameXmlFileElement->textContent;
 		
 		#cater for non-existent document, and create new one
 		my $gameXmlDoc = '';
 		my $gameConfigElement = ''; #the root element of the document
-		if(-e $gameXmlFileName){$gameXmlDoc = $parserLibXML->parse_file($gameXmlFileName);}
+		if(-e $gameXmlFilePath){$gameXmlDoc = $parserLibXML->parse_file($gameXmlFilePath);}
 		else{
 			$gameXmlDoc = XML::LibXML::Document->new('1.0','UTF-8');
 			$gameConfigElement = $gameXmlDoc->createElement('gameConfig');
 			$gameXmlDoc->setDocumentElement($gameConfigElement);
 		}
 		
-		#validate gameXmlDoc with gameXml.xsd
+		#use the directory of the XML doc as a search path for the schema
 		my $gameXmlSchema = '';
-		if(-e "gameXml.xsd"){
-			$gameXmlSchema = XML::LibXML::Schema->new('location' => "gameXml.xsd");
+		my ($gameXmlFileName,$gameXmlDirectory,$gameXmlSuffixes) = fileparse($gameXmlFilePath);
+
+		if(-e $gameXmlDirectory."gameXml.xsd"){
+			$gameXmlSchema = XML::LibXML::Schema->new('location' => $gameXmlDirectory."gameXml.xsd");
 			eval {$gameXmlSchema->validate($gameXmlDoc);};
 			die $@ if $@;
 		}
 		else{
-			print "WARNING: gameXml.xsd could not be found to validate ".
-			"original $gameXmlFileName file.\n";
+			print "WARNING: gameXml.xsd could not be found in the same directory to ".
+			"validate the original $gameXmlFilePath file.\n";
 		}
 				
 		#find the scaledArtIndex elements and delete them
@@ -630,17 +632,17 @@ if(-e $paramIn){
 		if($gameXmlSchema){
 			eval {$gameXmlSchema->validate($gameXmlDoc);};
 			if($@){
-				print "ERROR: schema validation for $gameXmlFileName:\n$@";
+				print "ERROR: schema validation for $gameXmlFilePath:\n$@";
 				exit;
 			}
 		}
 		else{
 			print "WARNING: gameXml.xsd could not be found to validate ".
-			"altered $gameXmlFileName file.\n";
+			"altered $gameXmlFilePath file.\n";
 		}
 		
 		#output to original file name
-		open (my $gameXmlFile_fh, '>', $gameXmlFileName);
+		open (my $gameXmlFile_fh, '>', $gameXmlFilePath);
 		print {$gameXmlFile_fh} $gameXmlDoc->toString(1); #indent for readability
 	}
 }
