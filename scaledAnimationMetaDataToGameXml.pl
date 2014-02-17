@@ -547,7 +547,7 @@ if(-e $paramIn){
 			my $scaleFactor = $textureFiles[$scaleCount][0];
 
 			my $scaledArtIndexElement = $gameXmlDoc->createElement('scaledArtIndex');
-			$scaledArtIndexElement->setAttribute('numAnimationFrames',($animFrameGuidCount));
+			$scaledArtIndexElement->setAttribute('numSprites',($animFrameGuidCount));
 			$scaledArtIndexElement->setAttribute('numAnimations',scalar(@animations));
 			$scaledArtIndexElement->setAttribute('numTextureFiles',scalar(keys %{$textureFiles[$scaleCount][4]}));
 			#optional elements
@@ -569,22 +569,22 @@ if(-e $paramIn){
 				$textureFileElement->appendTextChild('dir',$textureFileDirectory);
 				$textureFileElement->appendTextChild('file',($textureFileName.$textureFileSuffix));
 				
-				for(my $animationFrameCount = 0;
-					$animationFrameCount < scalar(@{$textureFiles[$scaleCount][4]{$imagePath}});
-					$animationFrameCount++){
+				for(my $spriteCount = 0;
+					$spriteCount < scalar(@{$textureFiles[$scaleCount][4]{$imagePath}});
+					$spriteCount++){
 					
-					my $animationFrameElement = $gameXmlDoc->createElement('animationFrame');
-					$animationFrameElement->setAttribute('uid',$animationFrameCount);
+					my $spriteElement = $gameXmlDoc->createElement('sprite');
+					$spriteElement->setAttribute('uid',$spriteCount);
 					my $uvElement = $gameXmlDoc->createElement('uv');
-					$uvElement->appendTextChild('x',$textureFiles[$scaleCount][4]{$imagePath}[$animationFrameCount][1]);
-					$uvElement->appendTextChild('y',$textureFiles[$scaleCount][4]{$imagePath}[$animationFrameCount][2]);
-					$animationFrameElement->appendChild($uvElement);
+					$uvElement->appendTextChild('x',$textureFiles[$scaleCount][4]{$imagePath}[$spriteCount][1]);
+					$uvElement->appendTextChild('y',$textureFiles[$scaleCount][4]{$imagePath}[$spriteCount][2]);
+					$spriteElement->appendChild($uvElement);
 					my $dimensionsElement = $gameXmlDoc->createElement('dimensions');
-					$dimensionsElement->appendTextChild('x',$textureFiles[$scaleCount][4]{$imagePath}[$animationFrameCount][3]);
-					$dimensionsElement->appendTextChild('y',$textureFiles[$scaleCount][4]{$imagePath}[$animationFrameCount][4]);
-					$animationFrameElement->appendChild($dimensionsElement);
+					$dimensionsElement->appendTextChild('x',$textureFiles[$scaleCount][4]{$imagePath}[$spriteCount][3]);
+					$dimensionsElement->appendTextChild('y',$textureFiles[$scaleCount][4]{$imagePath}[$spriteCount][4]);
+					$spriteElement->appendChild($dimensionsElement);
 
-					$textureFileElement->appendChild($animationFrameElement);
+					$textureFileElement->appendChild($spriteElement);
 				}
 			
 				$scaledArtIndexElement->appendChild($textureFileElement);
@@ -594,7 +594,7 @@ if(-e $paramIn){
 			for(my $animGuid = 0; $animGuid < scalar(@animations); $animGuid++){
 				my $animationElement = $gameXmlDoc->createElement('animation');
 				$animationElement->setAttribute('uid',$animGuid);
-				$animationElement->setAttribute('numAnimationFrameTimings',scalar(@{$animations[$animGuid][1]}));
+				$animationElement->setAttribute('numAnimationFrames',scalar(@{$animations[$animGuid][1]}));
 				$animationElement->appendTextChild('name',$animations[$animGuid][0]);
 			
 				#scale and store animation frame timings
@@ -610,16 +610,16 @@ if(-e $paramIn){
 					#				"$scaledOffsetX,".
 					#				"$scaledOffsetY]\n";
 				
-					my $animationFrameTimingElement = $gameXmlDoc->createElement('animationFrameTiming');
-					$animationFrameTimingElement->appendTextChild('animationFrameUid',$animations[$animGuid][1][$frameTimingCount][0]);
-					$animationFrameTimingElement->appendTextChild('startTimeMilliSec',$animations[$animGuid][1][$frameTimingCount][1]);
-					$animationFrameTimingElement->appendTextChild('endTimeMilliSec',$animations[$animGuid][1][$frameTimingCount][2]);
+					my $animationFrameElement = $gameXmlDoc->createElement('animationFrame');
+					$animationFrameElement->appendTextChild('spriteUid',$animations[$animGuid][1][$frameTimingCount][0]);
+					$animationFrameElement->appendTextChild('startTimeMilliSec',$animations[$animGuid][1][$frameTimingCount][1]);
+					$animationFrameElement->appendTextChild('endTimeMilliSec',$animations[$animGuid][1][$frameTimingCount][2]);
 					my $offsetElement = $gameXmlDoc->createElement('offset');
 					$offsetElement->appendTextChild('x',$scaledOffsetX);
 					$offsetElement->appendTextChild('y',$scaledOffsetY);
-					$animationFrameTimingElement->appendChild($offsetElement);
+					$animationFrameElement->appendChild($offsetElement);
 					
-					$animationElement->appendChild($animationFrameTimingElement);
+					$animationElement->appendChild($animationFrameElement);
 				}
 				
 				$scaledArtIndexElement->appendChild($animationElement);
