@@ -90,33 +90,35 @@ if(-e $paramIn){
 	#N.B. Spriter does not give each file a GUID, but a UID under a folder UID. 
 	#Sequential integer GUIDs will be stored in the unique path/filename keyed hash.
 
-	my %frameFileNameToGuid = (); 	#holds file name keyed hash of GUIDs.
-	my @guidToFrameFileName = ();	#holds GUID indexed file names.
+	my %frameFileNameToGuid = (); 		#holds file name keyed hash of GUIDs.
+	my @guidToFrameFileName = ();		#holds GUID indexed file names.
 	
-	my @animations = ();			#holds all animation data: 
-									#[guid]	[	name,	
-									#			[	frame GUID, 
-									#				frame start time,
-									#				frame end time, 
-									#				frame offset x,
-									#				frame offset y
-									#			]
-									#		]
-	my @textureFiles = ();			#holds all texture file data:
-									#[	scale factor,
-									#	target pixel density,
-									#	target resolution x,
-									#	target resolution y,
-									#	{fileLocation}	[
-									#						[	frame GUID,
-									#							frame u,
-									#							frame v,
-									#							frame width,
-									#							frame height
-									#						]
-									#	]
-									#]
-									# N.B. discards original component file name information
+	my @animations = ();				#holds all animation data: 
+										#[guid]	[	name,	
+										#			[	frame GUID, 
+										#				frame start time,
+										#				frame end time, 
+										#				frame translate x,
+										#				frame translate y
+										#			]
+										#		]
+	my $runtimeTextureDirectory = "";	#holds any specified string to override the 
+										#directory for texture files
+	my @textureFiles = ();				#holds all texture file data:
+										#[	scale factor,
+										#	target pixel density,
+										#	target resolution x,
+										#	target resolution y,
+										#	{fileLocation}	[
+										#						[	frame GUID,
+										#							frame u,
+										#							frame v,
+										#							frame width,
+										#							frame height
+										#						]
+										#	]
+										#]
+										# N.B. discards original component file name information
 
 	#************* For each Spriter document. *************#
 	
@@ -214,8 +216,8 @@ if(-e $paramIn){
 								my $frameGuid = "";
 								my $frameFolderId = "";
 								my $frameFileId = "";
-								my $frameOffsetX = "";
-								my $frameOffsetY = "";
+								my $frameTranslateX = "";
+								my $frameTranslateY = "";
 								my $frameStartTime = "";
 								my $frameEndTime = "";
 												
@@ -245,9 +247,9 @@ if(-e $paramIn){
 											$frameFolderId = $objectCandidate->getAttribute("folder");
 											$frameFileId = $objectCandidate->getAttribute("file");
 											
-											#store location coordinates of animation frame offset 
-											$frameOffsetX = $objectCandidate->getAttribute("x");
-											$frameOffsetY = $objectCandidate->getAttribute("y");
+											#store location coordinates of animation frame translate 
+											$frameTranslateX = $objectCandidate->getAttribute("x");
+											$frameTranslateY = $objectCandidate->getAttribute("y");
 										}
 										else{
 											print "ERROR: Missing Spriter \"object\", or its attributes in ".
@@ -297,12 +299,12 @@ if(-e $paramIn){
 														exit 1;
 													}
 												
-													#sense check the x and y offset attributes
-													if($frameOffsetX != $objectCandidate->getAttribute("x") ||
-														$frameOffsetY != $objectCandidate->getAttribute("y")){
+													#sense check the x and y translate attributes
+													if($frameTranslateX != $objectCandidate->getAttribute("x") ||
+														$frameTranslateY != $objectCandidate->getAttribute("y")){
 														print 	"WARNING: Expected to find same \"object\" attributes ".
-																								"(x $frameOffsetX, ".
-																								"y $frameOffsetY) ".
+																								"(x $frameTranslateX, ".
+																								"y $frameTranslateY) ".
 														"in second \"key\" in animation $animName. Using those in first ".
 														"\"object\"\n";
 														}
@@ -337,9 +339,9 @@ if(-e $paramIn){
 										exit 1;
 									}
 
-									#store animation frame timings and frame offsets
+									#store animation frame timings and frame translates
 									push(	@{$animations[$animGuidCount][1]},
-											[$frameGuid,$frameStartTime,$frameEndTime,$frameOffsetX,$frameOffsetY]);
+											[$frameGuid,$frameStartTime,$frameEndTime,$frameTranslateX,$frameTranslateY]);
 								}
 							}
 						}
@@ -378,6 +380,18 @@ if(-e $paramIn){
 	
 	#DEBUG
 	#print Dumper(%frameFileNameToGuid);
+	
+	#************* For each runtime texture directory string. *************#
+	foreach my $runtimeTextureDirectoryElement ($paramDoc->getElementsByTagName('runtimeTextureDirectory')){
+		#N.B. there should only be one element at most
+		$runtimeTextureDirectory = $runtimeTextureDirectoryElement->textContent;
+	}
+	#check non-empty directory finishes with a slash if it contains one.
+	#N.B. the runtime file system may differ from the script's environment, so we can not simply use File::Spec
+	if(length($runtimeTextureDirectory) && $runtimeTextureDirectory !~ /^.*[\/\\]$/){ #check directory does not end with a slash
+		if($runtimeTextureDirectory =~ /^.*[\/].*$/){$runtimeTextureDirectory = "$runtimeTextureDirectory/";} #check if it contains a forward slash
+		elsif($runtimeTextureDirectory =~ /^.*[\\].*[^\\]$/){$runtimeTextureDirectory = "$runtimeTextureDirectory\\";} #check if it contains a back slash
+	}
 	
 	#************* For each scaled TexturePacker file. *************#
 	my $scaleCount = 0;
@@ -566,7 +580,9 @@ if(-e $paramIn){
 				my($textureFileName,$textureFileDirectory,$textureFileSuffix) = fileparse($imagePath);
 				
 				my $textureFileElement = $gameXmlDoc->createElement('textureFile');
-				$textureFileElement->appendTextChild('dir',$textureFileDirectory);
+				#use runtime texture directory override if specified
+				if(length($runtimeTextureDirectory)){$textureFileElement->appendTextChild('dir',$runtimeTextureDirectory);}
+				else{$textureFileElement->appendTextChild('dir',$textureFileDirectory);}
 				$textureFileElement->appendTextChild('file',($textureFileName.$textureFileSuffix));
 				
 				for(my $spriteCount = 0;
@@ -599,25 +615,25 @@ if(-e $paramIn){
 			
 				#scale and store animation frame timings
 				for(my $frameTimingCount = 0;$frameTimingCount< scalar(@{$animations[$animGuid][1]});$frameTimingCount++){
-					#default is to round offsets to whole pixels to preserve original art					
-					my $scaledOffsetX = int($animations[$animGuid][1][$frameTimingCount][3]*$scaleFactor);
-					my $scaledOffsetY = int($animations[$animGuid][1][$frameTimingCount][4]*$scaleFactor);
+					#default is to round translates to whole pixels to preserve original art					
+					my $scaledTranslateX = int($animations[$animGuid][1][$frameTimingCount][3]*$scaleFactor);
+					my $scaledTranslateY = int($animations[$animGuid][1][$frameTimingCount][4]*$scaleFactor);
 				
 					#DEBUG
 					#print "DEBUG: [$animations[$animGuid][1][$frameTimingCount][0],".
 					#				"$animations[$animGuid][1][$frameTimingCount][1],".
 					#				"$animations[$animGuid][1][$frameTimingCount][2],".
-					#				"$scaledOffsetX,".
-					#				"$scaledOffsetY]\n";
+					#				"$scaledTranslateX,".
+					#				"$scaledTranslateY]\n";
 				
 					my $animationFrameElement = $gameXmlDoc->createElement('animationFrame');
 					$animationFrameElement->appendTextChild('spriteUid',$animations[$animGuid][1][$frameTimingCount][0]);
 					$animationFrameElement->appendTextChild('startTimeMilliSec',$animations[$animGuid][1][$frameTimingCount][1]);
 					$animationFrameElement->appendTextChild('endTimeMilliSec',$animations[$animGuid][1][$frameTimingCount][2]);
-					my $offsetElement = $gameXmlDoc->createElement('offset');
-					$offsetElement->appendTextChild('x',$scaledOffsetX);
-					$offsetElement->appendTextChild('y',$scaledOffsetY);
-					$animationFrameElement->appendChild($offsetElement);
+					my $translateElement = $gameXmlDoc->createElement('translate');
+					$translateElement->appendTextChild('x',$scaledTranslateX);
+					$translateElement->appendTextChild('y',$scaledTranslateY);
+					$animationFrameElement->appendChild($translateElement);
 					
 					$animationElement->appendChild($animationFrameElement);
 				}
