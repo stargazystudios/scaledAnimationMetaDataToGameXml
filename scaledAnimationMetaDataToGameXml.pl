@@ -187,7 +187,7 @@ if(-e $paramIn){
 			foreach my $spriterAnimationElement ($spriterDoc->getElementsByTagName('animation')){
 				#print "DEBUG: processing \"animation\" in Spriter file\n";
 				my $animName = "";
-				my $animLength = 0;
+				my $animLength = 0; #time in milliseconds
 				
 				if(	$spriterAnimationElement->hasAttribute("name") &&
 					$spriterAnimationElement->hasAttribute("length")){
@@ -203,50 +203,52 @@ if(-e $paramIn){
 					#object can occur if it is reused under the same animation. Processing
 					#the 'key' elements in order is important to preserve this meaning.
 					
-						foreach my $timelineCandidate ($spriterAnimationElement->getChildrenByTagName('timeline')){
+					#UPDATE: Spriter b6 has changed its SCML format, now we must interpret
+					#it differently. The "timeline" elements no longer contain two "key" 
+					#elements (with  a start and a stop time). There is now only one "key"
+					#that has the start time contained in it. The "mainline" element 
+					#contains the timing information, where the absence of an object at 
+					#a specific "key", means that it has been removed at that time.
+	
+					#create array of arrays holding key elements, indexed by timeline then
+					#id: @{$timelineKeys[$timelineId][$keyId]} = [	$frameGuid,
+					#												$frameTranslateX,
+					#												$frameTranslateY ]
+					my @timelineKeys = (); 					
+					foreach my $timelineCandidate ($spriterAnimationElement->getChildrenByTagName('timeline')){
+						
+						#print "DEBUG: processing \"timeline\" in Spriter file\n";
+						my $timelineId = "";
+						
+						if($timelineCandidate->hasAttribute("id")){
+							$timelineId = $timelineCandidate->getAttribute("id");
 							
-							#print "DEBUG: processing \"timeline\" in Spriter file\n";
-							my @keys = $timelineCandidate->getChildrenByTagName('key');
-							my $numKeys = @keys;
-							#print "DEBUG: number of \"keys\" in \"timeline\": $numKeys\n";
-							
-							for(my $i = 0; $i < $numKeys; $i++){
-								my $keyCandidate = $keys[$i];
-
-								my $frameGuid = "";
-								my $frameFolderId = "";
-								my $frameFileId = "";
-								my $frameTranslateX = "";
-								my $frameTranslateY = "";
-								my $frameStartTime = "";
-								my $frameEndTime = "";
-												
-								if($keyCandidate->nodeName eq "key"){
-									#found first key in a pair
-									#print "DEBUG: processing 1st \"key\" in Spriter animation $animName\n";												
-									#first key time attribute is start time in ms
-									#no time attribute means time 0ms								
-									if($keyCandidate->hasAttribute("time")){
-										$frameStartTime = $keyCandidate->getAttribute("time");
-									}
-									else{$frameStartTime = 0;}
-									
+							foreach my $keyCandidate ($timelineCandidate->getChildrenByTagName('key')){
+								if($keyCandidate->hasAttribute("id")){
+									my $keyId = $keyCandidate->getAttribute("id");
+								
+									my $frameGuid = "";
+									my $frameFolderId = "";
+									my $frameFileId = "";
+									my $frameTranslateX = "";
+									my $frameTranslateY = "";
+											
 									my $objectCandidate = '';
 									my @objects = $keyCandidate->getChildrenByTagName('object');
 									my $numObjects = @objects;
 									if($numObjects){$objectCandidate = $objects[0]}; #only expecting one object
-									
+							
 									if($objectCandidate){
 										if(	$objectCandidate->nodeName eq "object" &&
 											$objectCandidate->hasAttribute("folder") &&
 											$objectCandidate->hasAttribute("file") &&
 											$objectCandidate->hasAttribute("x") &&
 											$objectCandidate->hasAttribute("y")){						
-											
+									
 											#store object file and folder id
 											$frameFolderId = $objectCandidate->getAttribute("folder");
 											$frameFileId = $objectCandidate->getAttribute("file");
-											
+									
 											#store location coordinates of animation frame translate 
 											$frameTranslateX = $objectCandidate->getAttribute("x");
 											$frameTranslateY = $objectCandidate->getAttribute("y");
@@ -262,66 +264,7 @@ if(-e $paramIn){
 										"in animation $animName\n";
 										exit 1;
 									}
-									
-									#get 2nd key candidate in the pair to find end time
-									$i++;
-									if($i<$numKeys){$keyCandidate = $keys[$i];}
-									else{$keyCandidate = '';}
-									
-									if($keyCandidate){
-										if($keyCandidate->nodeName eq "key"){
-											#print "DEBUG: processing 2nd \"key\" in Spriter animation $animName\n";												
-											if($keyCandidate->hasAttribute("time")){
-												$frameEndTime = $keyCandidate->getAttribute("time");
-											}
-											else{
-												print "ERROR: Expected to find end time for frame in animation $animName\n";
-												exit 1;
-											}
-									
-											my $objectCandidate = '';
-											my @objects = $keyCandidate->getChildrenByTagName('object');
-											my $numObjects = @objects;
-											if($numObjects){$objectCandidate = $objects[0]}; #only expecting one object
-									
-											if($objectCandidate){
-												if(	$objectCandidate->nodeName eq "object" &&
-													$objectCandidate->hasAttribute("folder") &&
-													$objectCandidate->hasAttribute("file")){				
-											
-													#compare object file and folder id
-													if(	$frameFolderId != $objectCandidate->getAttribute("folder") ||
-														$frameFileId != $objectCandidate->getAttribute("file")){
-														print "ERROR: Expected to find same \"object\" attributes ".
-																							"(folder $frameFolderId, ".
-																							"file $frameFileId) ".
-														"in second \"key\" in animation $animName\n";
-														exit 1;
-													}
-												
-													#sense check the x and y translate attributes
-													if($frameTranslateX != $objectCandidate->getAttribute("x") ||
-														$frameTranslateY != $objectCandidate->getAttribute("y")){
-														print 	"WARNING: Expected to find same \"object\" attributes ".
-																								"(x $frameTranslateX, ".
-																								"y $frameTranslateY) ".
-														"in second \"key\" in animation $animName. Using those in first ".
-														"\"object\"\n";
-														}
-												}
-											}
-											else{
-												print "ERROR: Missing Spriter file \"object\" node in second \"key\" in ".
-												"animation $animName\n";
-												exit 1;
-											}
-										}
-									}
-									#if there is no second key candidate, then the frame is a single one,
-									# which ends with a finish time of the animation "length".
-									else{$frameEndTime = $animLength;}
-
-									#Store frame data in animation hash								
+													
 									#lookup frame GUID using folder and file attributes
 									if($frameFolderId >= 0 && $frameFileId >= 0){
 										if(exists $spriterFrameIdToGuid{$frameFolderId}{$frameFileId}){
@@ -338,32 +281,151 @@ if(-e $paramIn){
 										"in animation $animName, when trying to look up frame GUID\n";
 										exit 1;
 									}
+										
+									#DEBUG
+									#print "DEBUG: storing timeLineKey\n";
+									#store timeline key data
+									$timelineKeys[$timelineId][$keyId] = [	$frameGuid,
+																			$frameTranslateX,
+																			$frameTranslateY ];
+								}
+							
+							}
+						}
+						else{
+							print "ERROR: Missing id attribute for timeline element ". 
+							"in animation $animName.\n";
+							exit 1;
+						}
+					}
+					
+					#DEBUG
+					#print "timelineKeys for $animName: \n".Dumper(@timelineKeys);
+					
+					#process "mainline" element; N.B. there should only be one
+					#store key data in hash, keyed by each key's time:
+					#%mainlineKeys{$keyTime} = [	$object_refTimeline,
+					#								$object_refKey ]
+					my %mainlineKeys;
+					foreach my $mainlineCandidate ($spriterAnimationElement->getChildrenByTagName('mainline')){
+						%mainlineKeys = (); #override any existing data in the hash
+						
+						foreach my $keyCandidate($mainlineCandidate->getChildrenByTagName('key')){
+							my $keyTime = 0;
+							
+							if($keyCandidate->nodeName eq "key"){						
+								if($keyCandidate->hasAttribute("time")){
+									$keyTime = $keyCandidate->getAttribute("time");
+								}
 
-									#store animation frame timings and frame translates
-									push(	@{$animations[$animGuidCount][1]},
-											[$frameGuid,$frameStartTime,$frameEndTime,$frameTranslateX,$frameTranslateY]);
+								my $object_refCandidate = '';
+								my @object_refs = $keyCandidate->getChildrenByTagName('object_ref');
+								my $numObject_refs = @object_refs;
+								
+								my $object_refTimeline = "";
+								my $object_refKey = "";
+								
+								for(my $j = 0; $j < $numObject_refs; $j++){
+									$object_refCandidate = $object_refs[$j];
+									if($object_refCandidate->hasAttribute("timeline")){
+										$object_refTimeline = $object_refCandidate->getAttribute("timeline");
+									}
+									if($object_refCandidate->hasAttribute("key")){
+										$object_refKey = $object_refCandidate->getAttribute("key");
+									}
+									
+									if(	$object_refTimeline ne "" &&
+										$object_refKey ne ""){
+										#DEBUG
+										#print "DEBUG: storing mainlineKey\n";
+										push(@{$mainlineKeys{$keyTime}},[$object_refTimeline, $object_refKey]);
+									}
 								}
 							}
 						}
-						
-						my $animFrameCount = @{$animations[$animGuidCount][1]};
-						#print "DEBUG: number of animations frames for $animName: $animFrameCount\n";
-						if($animFrameCount){ 
-							#store valid animation
-							$animations[$animGuidCount][0] = $animName;
-						
-							#sort frame data arrays by start time order, which is at index 1 of frame data array
-							@{$animations[$animGuidCount][1]} = sort {$a->[1]<=>$b->[1]} @{$animations[$animGuidCount][1]};
+					}
+					
+					#DEBUG
+					#print "mainlineKeys for $animName: \n".Dumper(%mainlineKeys);
+
+					#temporary list of active frames:
+					#@{$activeFrames{timelineId}{keyId} = [frameStartTime,frameEndTime]
+					my %activeFrames = ();
+					foreach my $mainlineTime (sort keys %mainlineKeys){
+						foreach my $object_ref (@{$mainlineKeys{$mainlineTime}}){
+							my $timeLineId = @$object_ref[0];
+							my $keyId = @$object_ref[1];
 							
-							$animGuidCount++;
+							#frame newly introduced to mainline
+							if (!exists $activeFrames{$timeLineId}{$keyId}){
+								#DEBUG
+								#print "DEBUG: starting activeFrame using frameStartTime = mainlineTime\n";
+								$activeFrames{$timeLineId}{$keyId} = [$mainlineTime,$mainlineTime];
+							}
+							#existing frame continues to be displayed, so update frameEndTime
+							else{
+								#DEBUG
+								#print "DEBUG: updating activeFrame frameEndTime = mainlineTime\n";
+								$activeFrames{$timeLineId}{$keyId}[1] = $mainlineTime;
+							}
+							
+							#check for frames that have not had their end times updated to the current time,
+							#and output those completed frames to the animation array
+							for my $checkTimelineId (keys %activeFrames){
+								for my $checkKeyId (keys %{$activeFrames{$checkTimelineId}}){									
+										if ($activeFrames{$checkTimelineId}{$checkKeyId}[1] != $mainlineTime){
+											#DEBUG
+											#print "DEBUG: storing activeFrame using frameEndTime = mainlineTime\n";
+											#store animation frame timings and frame translates
+											push(	@{$animations[$animGuidCount][1]},
+													[	$timelineKeys[$checkTimelineId][$checkKeyId][0],	#frameGuid
+														$activeFrames{$checkTimelineId}{$checkKeyId}[0],	#frameStartTime
+														$mainlineTime,										#frameEndTime
+														$timelineKeys[$checkTimelineId][$checkKeyId][1],	#frameTranslateX
+														$timelineKeys[$checkTimelineId][$checkKeyId][2] 	#frameTranslateY
+													]);
+											delete $activeFrames{$checkTimelineId}{$checkKeyId};
+										}	
+								}
+							}
 						}
-						else{ #animation is empty, do not increment animation GUID, & overwrite on next valid animation
-							print "WARNING: Empty Spriter animation $animName will not be stored\n";
-							#clear references to temporarily stored data
-							$animations[$animGuidCount][1] = ();
-							$animations[$animGuidCount] = ();
-						}
-					}			
+					}
+					
+					#for all frames that have not exited at a key frame, set their end time to the animation
+					#length
+					for my $timelineId (keys %activeFrames){
+						for my $keyId (keys %{$activeFrames{$timelineId}}){
+							#DEBUG
+							#print "DEBUG: storing activeFrame using frameEndTime = animLength\n";
+							#store animation frame timings and frame translates
+							push(	@{$animations[$animGuidCount][1]},
+									[	$timelineKeys[$timelineId][$keyId][0],	#frameGuid
+										$activeFrames{$timelineId}{$keyId}[0],	#frameStartTime
+										$animLength,							#frameEndTime
+										$timelineKeys[$timelineId][$keyId][1],	#frameTranslateX
+										$timelineKeys[$timelineId][$keyId][2] 	#frameTranslateY
+									]);
+						}	
+					}
+					
+					my $animFrameCount = @{$animations[$animGuidCount][1]};
+					#print "DEBUG: number of animations frames for $animName: $animFrameCount\n";
+					if($animFrameCount){ 
+						#store animation name
+						$animations[$animGuidCount][0] = $animName;
+						
+						#sort animation frame timings by start time (already sorted by end time)
+						@{$animations[$animGuidCount][1]} = sort {$a->[1]<=>$b->[1]} @{$animations[$animGuidCount][1]};
+						
+						$animGuidCount++;
+					}
+					else{ #animation is empty, do not increment animation GUID, & overwrite on next valid animation
+						print "WARNING: Empty Spriter animation $animName will not be stored\n";
+						#clear references to temporarily stored data
+						$animations[$animGuidCount][1] = ();
+						$animations[$animGuidCount] = ();
+					}
+				}			
 
 				else{
 					print "ERROR: Missing Spriter animation \"name\" or \"length\" attribute\n";
