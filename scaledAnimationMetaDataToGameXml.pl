@@ -100,7 +100,8 @@ if(-e $paramIn){
 										#				frame end time, 
 										#				frame translate x,
 										#				frame translate y
-										#			]
+										#			],
+										#			length
 										#		]
 	my $runtimeTextureDirectory = "";	#holds any specified string to override the 
 										#directory for texture files
@@ -411,8 +412,9 @@ if(-e $paramIn){
 					my $animFrameCount = @{$animations[$animGuidCount][1]};
 					#print "DEBUG: number of animations frames for $animName: $animFrameCount\n";
 					if($animFrameCount){ 
-						#store animation name
+						#store animation name & length
 						$animations[$animGuidCount][0] = $animName;
+						$animations[$animGuidCount][2] = $animLength;
 						
 						#sort animation frame timings by start time (already sorted by end time)
 						@{$animations[$animGuidCount][1]} = sort {$a->[1]<=>$b->[1]} @{$animations[$animGuidCount][1]};
@@ -672,8 +674,9 @@ if(-e $paramIn){
 			for(my $animGuid = 0; $animGuid < scalar(@animations); $animGuid++){
 				my $animationElement = $gameXmlDoc->createElement('animation');
 				$animationElement->setAttribute('uid',$animGuid);
-				$animationElement->setAttribute('numAnimationFrames',scalar(@{$animations[$animGuid][1]}));
 				$animationElement->appendTextChild('name',$animations[$animGuid][0]);
+				$animationElement->setAttribute('numAnimationFrames',scalar(@{$animations[$animGuid][1]}));
+				$animationElement->setAttribute('animationLengthMilliSec',$animations[$animGuid][2]);
 			
 				#scale and store animation frame timings
 				for(my $frameTimingCount = 0;$frameTimingCount< scalar(@{$animations[$animGuid][1]});$frameTimingCount++){
