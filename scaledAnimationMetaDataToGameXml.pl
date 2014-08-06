@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 
 #Copyright (c) 2013, Stargazy Studios
 #All Rights Reserved
@@ -52,6 +52,7 @@
 #Recommended software for editing/creating XML documents from an XSD schema:
 #	XAmple (http://freecode.com/projects/xample)
 
+use warnings;
 use strict;
 use warnings;
 use Getopt::Long;
